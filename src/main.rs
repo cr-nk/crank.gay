@@ -1,14 +1,18 @@
-use axum::{
-    routing::get,
-    Router,
-};
+use sqlx::PgPool;
+mod errors;
+mod models;
+mod router;
+mod routes;
+mod templates;
 
-#[tokio::main]
-async fn main() {
-    // build our application with a single route
-    let app = Router::new().route("/", get(|| async { "HALLO :D" }));
+#[shuttle_runtime::main]
+async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
 
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let router = router::init_router(pool);
+
+    Ok(router.into())
 }
